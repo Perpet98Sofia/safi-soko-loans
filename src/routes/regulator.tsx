@@ -121,6 +121,82 @@ function RegulatorAudit() {
   const failed = totalSubs - passed;
   const deniedTotal = demoSubs.reduce((s, x) => s + x.deniedEvents, 0);
 
+  const handleExportCsv = () => {
+    const now = new Date().toISOString().slice(0, 10);
+    const subRows = [
+      ["Subscriber", "Role", "Trader ID", "Trader Name", "Channel", "RLS Passed", "Denied Events", "Last Event"],
+      ...demoSubs.map((s) => [
+        s.subscriber,
+        s.role,
+        s.traderId,
+        s.traderName,
+        s.channel,
+        s.rlsPassed ? "passed" : "failed",
+        String(s.deniedEvents),
+        s.lastEvent,
+      ]),
+    ];
+    downloadCsv(`finsoko-track-audit-${now}.csv`, subRows);
+  };
+
+  const handleExportPdf = () => {
+    const now = new Date().toLocaleString();
+    const kpiHtml = `
+      <div class="kpi-row">
+        <div class="kpi"><div class="kpi-label">Active subscriptions</div><div class="kpi-value">${totalSubs}</div></div>
+        <div class="kpi"><div class="kpi-label">RLS checks passed</div><div class="kpi-value">${passed}</div></div>
+        <div class="kpi"><div class="kpi-label">RLS checks failed</div><div class="kpi-value">${failed}</div></div>
+        <div class="kpi"><div class="kpi-label">Denied realtime events</div><div class="kpi-value">${deniedTotal}</div></div>
+      </div>
+    `;
+    const subHtml = `
+      <h2>Subscribers ↔ trader channels</h2>
+      <table>
+        <thead><tr><th>Subscriber</th><th>Role</th><th>Trader</th><th>Channel</th><th>RLS</th><th>Denied</th><th>Last event</th></tr></thead>
+        <tbody>
+          ${demoSubs.map((s) => `
+            <tr>
+              <td>${s.subscriber}</td>
+              <td>${s.role}</td>
+              <td>${s.traderName} (${s.traderId})</td>
+              <td>${s.channel}</td>
+              <td><span class="badge ${s.rlsPassed ? "pass" : "fail"}">${s.rlsPassed ? "passed" : "failed"}</span></td>
+              <td>${s.deniedEvents}</td>
+              <td>${s.lastEvent}</td>
+            </tr>
+          `).join("")}
+        </tbody>
+      </table>
+    `;
+    const logHtml = logs.length
+      ? `
+        <h2>Recent TRACK audit log</h2>
+        <table>
+          <thead><tr><th>Timestamp</th><th>Action</th><th>Entity type</th><th>Bias flagged</th></tr></thead>
+          <tbody>
+            ${logs.map((l) => `
+              <tr>
+                <td>${new Date(l.created_at).toLocaleString()}</td>
+                <td>${l.action}</td>
+                <td>${l.entity_type ?? "—"}</td>
+                <td>${l.bias_flagged ? "Yes" : "No"}</td>
+              </tr>
+            `).join("")}
+          </tbody>
+        </table>
+      `
+      : `<p>No audit log entries visible to this session.</p>`;
+
+    const content = `
+      <h1>FinSoko — Realtime Subscription Audit</h1>
+      <div class="meta">TRACK · Regulator-only audit view · Exported ${now} · Hosted in African region · ke-central-1</div>
+      ${kpiHtml}
+      ${subHtml}
+      ${logHtml}
+    `;
+    downloadPdf("finsoko-track-audit.pdf", "FinSoko TRACK Audit", content);
+  };
+
   return (
     <div className="min-h-screen bg-savanna">
       <SiteNav />
