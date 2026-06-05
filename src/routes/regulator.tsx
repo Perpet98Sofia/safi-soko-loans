@@ -2,7 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { SiteNav, SiteFooter } from "@/components/SiteChrome";
 import { supabase } from "@/integrations/supabase/client";
-import { ShieldCheck, Radio, AlertTriangle, Lock, Users, Activity, XCircle, CheckCircle2 } from "lucide-react";
+import { ShieldCheck, Radio, AlertTriangle, Lock, Users, Activity, XCircle, CheckCircle2, Download, FileSpreadsheet, FileText } from "lucide-react";
 
 export const Route = createFileRoute("/regulator")({
   head: () => ({ meta: [{ title: "Regulator audit · FinSoko" }] }),
@@ -32,6 +32,74 @@ const demoSubs: Subscription[] = [
 
 type Audit = { id: string; created_at: string; action: string; entity_type: string | null; bias_flagged: boolean | null };
 
+function escapeCsv(value: string) {
+  const str = String(value ?? "");
+  if (str.includes(",") || str.includes('"') || str.includes("\n")) {
+    return `"${str.replace(/"/g, '""')}"`;
+  }
+  return str;
+}
+
+function downloadCsv(filename: string, rows: string[][]) {
+  const csv = rows.map((r) => r.map(escapeCsv).join(",")).join("\n");
+  const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
+function downloadPdf(filename: string, title: string, htmlContent: string) {
+  const fullHtml = `
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>${title}</title>
+<style>
+  body { font-family: system-ui, -apple-system, sans-serif; font-size: 11px; color: #1a1a1a; margin: 24px; }
+  h1 { font-size: 16px; margin-bottom: 4px; }
+  h2 { font-size: 13px; margin-top: 20px; margin-bottom: 8px; }
+  .meta { color: #555; margin-bottom: 16px; }
+  table { width: 100%; border-collapse: collapse; margin-top: 8px; }
+  th, td { text-align: left; padding: 6px 8px; border-bottom: 1px solid #ddd; }
+  th { background: #f5f5f5; font-weight: 600; text-transform: uppercase; font-size: 10px; }
+  .badge { display: inline-block; padding: 2px 8px; border-radius: 999px; font-size: 10px; font-weight: 500; }
+  .pass { background: #d1fae5; color: #065f46; }
+  .fail { background: #fee2e2; color: #991b1b; }
+  .kpi-row { display: flex; gap: 16px; margin-bottom: 16px; }
+  .kpi { flex: 1; border: 1px solid #ddd; border-radius: 8px; padding: 12px; }
+  .kpi-label { font-size: 10px; text-transform: uppercase; color: #555; }
+  .kpi-value { font-size: 18px; font-weight: 700; margin-top: 4px; }
+</style>
+</head>
+<body>
+${htmlContent}
+</body>
+</html>`;
+  const blob = new Blob([fullHtml], { type: "text/html" });
+  const url = URL.createObjectURL(blob);
+  const printWindow = window.open(url, "_blank");
+  if (printWindow) {
+    printWindow.onload = () => {
+      printWindow.print();
+      URL.revokeObjectURL(url);
+    };
+  } else {
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = filename.replace(".pdf", ".html");
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  }
+}
+
 function RegulatorAudit() {
   const [logs, setLogs] = useState<Audit[]>([]);
   const [loading, setLoading] = useState(true);
@@ -53,6 +121,82 @@ function RegulatorAudit() {
   const failed = totalSubs - passed;
   const deniedTotal = demoSubs.reduce((s, x) => s + x.deniedEvents, 0);
 
+  const handleExportCsv = () => {
+    const now = new Date().toISOString().slice(0, 10);
+    const subRows = [
+      ["Subscriber", "Role", "Trader ID", "Trader Name", "Channel", "RLS Passed", "Denied Events", "Last Event"],
+      ...demoSubs.map((s) => [
+        s.subscriber,
+        s.role,
+        s.traderId,
+        s.traderName,
+        s.channel,
+        s.rlsPassed ? "passed" : "failed",
+        String(s.deniedEvents),
+        s.lastEvent,
+      ]),
+    ];
+    downloadCsv(`finsoko-track-audit-${now}.csv`, subRows);
+  };
+
+  const handleExportPdf = () => {
+    const now = new Date().toLocaleString();
+    const kpiHtml = `
+      <div class="kpi-row">
+        <div class="kpi"><div class="kpi-label">Active subscriptions</div><div class="kpi-value">${totalSubs}</div></div>
+        <div class="kpi"><div class="kpi-label">RLS checks passed</div><div class="kpi-value">${passed}</div></div>
+        <div class="kpi"><div class="kpi-label">RLS checks failed</div><div class="kpi-value">${failed}</div></div>
+        <div class="kpi"><div class="kpi-label">Denied realtime events</div><div class="kpi-value">${deniedTotal}</div></div>
+      </div>
+    `;
+    const subHtml = `
+      <h2>Subscribers ↔ trader channels</h2>
+      <table>
+        <thead><tr><th>Subscriber</th><th>Role</th><th>Trader</th><th>Channel</th><th>RLS</th><th>Denied</th><th>Last event</th></tr></thead>
+        <tbody>
+          ${demoSubs.map((s) => `
+            <tr>
+              <td>${s.subscriber}</td>
+              <td>${s.role}</td>
+              <td>${s.traderName} (${s.traderId})</td>
+              <td>${s.channel}</td>
+              <td><span class="badge ${s.rlsPassed ? "pass" : "fail"}">${s.rlsPassed ? "passed" : "failed"}</span></td>
+              <td>${s.deniedEvents}</td>
+              <td>${s.lastEvent}</td>
+            </tr>
+          `).join("")}
+        </tbody>
+      </table>
+    `;
+    const logHtml = logs.length
+      ? `
+        <h2>Recent TRACK audit log</h2>
+        <table>
+          <thead><tr><th>Timestamp</th><th>Action</th><th>Entity type</th><th>Bias flagged</th></tr></thead>
+          <tbody>
+            ${logs.map((l) => `
+              <tr>
+                <td>${new Date(l.created_at).toLocaleString()}</td>
+                <td>${l.action}</td>
+                <td>${l.entity_type ?? "—"}</td>
+                <td>${l.bias_flagged ? "Yes" : "No"}</td>
+              </tr>
+            `).join("")}
+          </tbody>
+        </table>
+      `
+      : `<p>No audit log entries visible to this session.</p>`;
+
+    const content = `
+      <h1>FinSoko — Realtime Subscription Audit</h1>
+      <div class="meta">TRACK · Regulator-only audit view · Exported ${now} · Hosted in African region · ke-central-1</div>
+      ${kpiHtml}
+      ${subHtml}
+      ${logHtml}
+    `;
+    downloadPdf("finsoko-track-audit.pdf", "FinSoko TRACK Audit", content);
+  };
+
   return (
     <div className="min-h-screen bg-savanna">
       <SiteNav />
@@ -68,9 +212,27 @@ function RegulatorAudit() {
               regulators only.
             </p>
           </div>
-          <div className="inline-flex items-center gap-2 rounded-full border border-border bg-card px-3 py-1.5 text-xs">
-            <Lock className="h-3.5 w-3.5 text-primary" />
-            Hosted in African region · ke-central-1
+          <div className="flex items-center gap-3">
+            <button
+              onClick={handleExportCsv}
+              className="inline-flex items-center gap-2 rounded-full border border-border bg-card px-3 py-1.5 text-xs hover:bg-muted transition-colors cursor-pointer"
+              type="button"
+            >
+              <FileSpreadsheet className="h-3.5 w-3.5 text-primary" />
+              Export CSV
+            </button>
+            <button
+              onClick={handleExportPdf}
+              className="inline-flex items-center gap-2 rounded-full border border-border bg-card px-3 py-1.5 text-xs hover:bg-muted transition-colors cursor-pointer"
+              type="button"
+            >
+              <FileText className="h-3.5 w-3.5 text-primary" />
+              Export PDF
+            </button>
+            <div className="inline-flex items-center gap-2 rounded-full border border-border bg-card px-3 py-1.5 text-xs">
+              <Lock className="h-3.5 w-3.5 text-primary" />
+              Hosted in African region · ke-central-1
+            </div>
           </div>
         </div>
 
