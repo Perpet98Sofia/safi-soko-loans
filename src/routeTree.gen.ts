@@ -9,11 +9,17 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as RegulatorRouteImport } from './routes/regulator'
 import { Route as OfficerRouteImport } from './routes/officer'
 import { Route as DashboardRouteImport } from './routes/dashboard'
 import { Route as ApplyRouteImport } from './routes/apply'
 import { Route as IndexRouteImport } from './routes/index'
 
+const RegulatorRoute = RegulatorRouteImport.update({
+  id: '/regulator',
+  path: '/regulator',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const OfficerRoute = OfficerRouteImport.update({
   id: '/officer',
   path: '/officer',
@@ -40,12 +46,14 @@ export interface FileRoutesByFullPath {
   '/apply': typeof ApplyRoute
   '/dashboard': typeof DashboardRoute
   '/officer': typeof OfficerRoute
+  '/regulator': typeof RegulatorRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/apply': typeof ApplyRoute
   '/dashboard': typeof DashboardRoute
   '/officer': typeof OfficerRoute
+  '/regulator': typeof RegulatorRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -53,13 +61,14 @@ export interface FileRoutesById {
   '/apply': typeof ApplyRoute
   '/dashboard': typeof DashboardRoute
   '/officer': typeof OfficerRoute
+  '/regulator': typeof RegulatorRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/apply' | '/dashboard' | '/officer'
+  fullPaths: '/' | '/apply' | '/dashboard' | '/officer' | '/regulator'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/apply' | '/dashboard' | '/officer'
-  id: '__root__' | '/' | '/apply' | '/dashboard' | '/officer'
+  to: '/' | '/apply' | '/dashboard' | '/officer' | '/regulator'
+  id: '__root__' | '/' | '/apply' | '/dashboard' | '/officer' | '/regulator'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -67,10 +76,18 @@ export interface RootRouteChildren {
   ApplyRoute: typeof ApplyRoute
   DashboardRoute: typeof DashboardRoute
   OfficerRoute: typeof OfficerRoute
+  RegulatorRoute: typeof RegulatorRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/regulator': {
+      id: '/regulator'
+      path: '/regulator'
+      fullPath: '/regulator'
+      preLoaderRoute: typeof RegulatorRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/officer': {
       id: '/officer'
       path: '/officer'
@@ -107,17 +124,8 @@ const rootRouteChildren: RootRouteChildren = {
   ApplyRoute: ApplyRoute,
   DashboardRoute: DashboardRoute,
   OfficerRoute: OfficerRoute,
+  RegulatorRoute: RegulatorRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
-
-import type { getRouter } from './router.tsx'
-import type { startInstance } from './start.ts'
-declare module '@tanstack/react-start' {
-  interface Register {
-    ssr: true
-    router: Awaited<ReturnType<typeof getRouter>>
-    config: Awaited<ReturnType<typeof startInstance.getOptions>>
-  }
-}
