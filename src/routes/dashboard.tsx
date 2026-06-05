@@ -2,7 +2,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useState, useCallback } from "react";
 import { SiteNav, SiteFooter } from "@/components/SiteChrome";
 import { Button } from "@/components/ui/button";
-import { ArrowRight, Clock, CheckCircle2, ShieldCheck, Radio } from "lucide-react";
+import { ArrowRight, Clock, CheckCircle2, ShieldCheck, Radio, Lock } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
@@ -179,6 +179,27 @@ function TraderDashboard() {
             audit log and your data stays in African regions.
           </p>
         </div>
+
+        <details className="mt-4 rounded-xl border border-border bg-card text-sm">
+          <summary className="flex cursor-pointer items-center gap-2 px-4 py-3 font-medium text-foreground">
+            <Lock className="h-4 w-4 text-primary" />
+            Developer / Regulator note: How RLS protects your live updates
+          </summary>
+          <div className="border-t border-border px-4 py-4 text-muted-foreground">
+            <p className="mb-2">
+              FinSoko uses <strong>Row-Level Security (RLS)</strong> on the <code className="rounded bg-muted px-1 py-0.5 font-mono text-xs">loan_applications</code> table.
+              When a trader opens this dashboard, the browser subscribes to a Supabase Realtime channel filtered by <code className="rounded bg-muted px-1 py-0.5 font-mono text-xs">trader_id</code>.
+            </p>
+            <p className="mb-2">
+              The database enforces a strict policy: each trader can only read rows where their own <code className="rounded bg-muted px-1 py-0.5 font-mono text-xs">user_id</code> matches the authenticated session.
+              Even if a malicious client tried to remove or alter the client-side filter, the server would still evaluate the RLS policy on every event and drop any loan update that does not belong to the signed-in trader.
+            </p>
+            <p>
+              This means every realtime status change — from Pending → Under Review → Approved — is delivered only to the rightful borrower,
+              satisfying East African data-sovereignty requirements and FinSoko’s TRACK audit guarantees.
+            </p>
+          </div>
+        </details>
       </main>
       <SiteFooter />
     </div>
