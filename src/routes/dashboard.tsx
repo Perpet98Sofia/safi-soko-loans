@@ -2,7 +2,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useState, useCallback } from "react";
 import { SiteNav, SiteFooter } from "@/components/SiteChrome";
 import { Button } from "@/components/ui/button";
-import { ArrowRight, Clock, CheckCircle2, ShieldCheck, Radio } from "lucide-react";
+import { ArrowRight, Clock, CheckCircle2, ShieldCheck, Radio, Lock } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
