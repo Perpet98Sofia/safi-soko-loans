@@ -14,6 +14,7 @@ export function SiteNav() {
           <Link to="/dashboard" className="hover:text-foreground">Trader</Link>
           <Link to="/apply" className="hover:text-foreground">Apply</Link>
           <Link to="/officer" className="hover:text-foreground">Officer</Link>
+          <Link to="/regulator" className="hover:text-foreground">Regulator</Link>
           <a href="#governance" className="hover:text-foreground">Governance</a>
         </nav>
         <Link
