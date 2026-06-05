@@ -212,9 +212,27 @@ function RegulatorAudit() {
               regulators only.
             </p>
           </div>
-          <div className="inline-flex items-center gap-2 rounded-full border border-border bg-card px-3 py-1.5 text-xs">
-            <Lock className="h-3.5 w-3.5 text-primary" />
-            Hosted in African region · ke-central-1
+          <div className="flex items-center gap-3">
+            <button
+              onClick={handleExportCsv}
+              className="inline-flex items-center gap-2 rounded-full border border-border bg-card px-3 py-1.5 text-xs hover:bg-muted transition-colors cursor-pointer"
+              type="button"
+            >
+              <FileSpreadsheet className="h-3.5 w-3.5 text-primary" />
+              Export CSV
+            </button>
+            <button
+              onClick={handleExportPdf}
+              className="inline-flex items-center gap-2 rounded-full border border-border bg-card px-3 py-1.5 text-xs hover:bg-muted transition-colors cursor-pointer"
+              type="button"
+            >
+              <FileText className="h-3.5 w-3.5 text-primary" />
+              Export PDF
+            </button>
+            <div className="inline-flex items-center gap-2 rounded-full border border-border bg-card px-3 py-1.5 text-xs">
+              <Lock className="h-3.5 w-3.5 text-primary" />
+              Hosted in African region · ke-central-1
+            </div>
           </div>
         </div>
 
