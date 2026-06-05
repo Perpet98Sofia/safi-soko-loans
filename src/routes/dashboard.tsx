@@ -1,21 +1,33 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
+import { useEffect, useState, useCallback } from "react";
 import { SiteNav, SiteFooter } from "@/components/SiteChrome";
 import { Button } from "@/components/ui/button";
-import { ArrowRight, Clock, CheckCircle2, ShieldCheck } from "lucide-react";
+import { ArrowRight, Clock, CheckCircle2, ShieldCheck, Radio } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
 
 export const Route = createFileRoute("/dashboard")({
   head: () => ({ meta: [{ title: "Trader dashboard · FinSoko" }] }),
   component: TraderDashboard,
 });
 
-// Mock data — phase 2 will load via createServerFn + requireSupabaseAuth.
-const loans = [
-  { id: "L-1042", amount: 18000, purpose: "Restock vegetables for Kawangware market", status: "approved", risk: 1.4, when: "2026-05-30" },
-  { id: "L-1071", amount: 9500, purpose: "Boda fuel + chain replacement", status: "under_review", risk: 2.1, when: "2026-06-02" },
-  { id: "L-1088", amount: 32000, purpose: "Seed + fertilizer for short rains", status: "pending", risk: 2.7, when: "2026-06-04" },
+type LoanRow = {
+  id: string;
+  amount_kes: number;
+  purpose: string;
+  status: "pending" | "under_review" | "approved" | "rejected";
+  created_at: string;
+  updated_at: string;
+};
+
+// Demo fallback used until the trader signs in (Phase 2 wires auth).
+const demoLoans: LoanRow[] = [
+  { id: "L-1042", amount_kes: 18000, purpose: "Restock vegetables for Kawangware market", status: "approved", created_at: "2026-05-30", updated_at: "2026-05-30" },
+  { id: "L-1071", amount_kes: 9500, purpose: "Boda fuel + chain replacement", status: "under_review", created_at: "2026-06-02", updated_at: "2026-06-02" },
+  { id: "L-1088", amount_kes: 32000, purpose: "Seed + fertilizer for short rains", status: "pending", created_at: "2026-06-04", updated_at: "2026-06-04" },
 ];
 
-const statusLabel: Record<string, { text: string; tone: string }> = {
+const statusLabel: Record<LoanRow["status"], { text: string; tone: string }> = {
   approved: { text: "Approved · Imeidhinishwa", tone: "bg-success/15 text-success" },
   under_review: { text: "Under human review · Inakaguliwa", tone: "bg-accent/30 text-foreground" },
   pending: { text: "Pending · Inasubiri", tone: "bg-muted text-muted-foreground" },
@@ -23,6 +35,76 @@ const statusLabel: Record<string, { text: string; tone: string }> = {
 };
 
 function TraderDashboard() {
+  const [loans, setLoans] = useState<LoanRow[]>(demoLoans);
+  const [traderId, setTraderId] = useState<string | null>(null);
+  const [live, setLive] = useState(false);
+
+  const loadLoans = useCallback(async (tid: string) => {
+    const { data, error } = await supabase
+      .from("loan_applications")
+      .select("id, amount_kes, purpose, status, created_at, updated_at")
+      .eq("trader_id", tid)
+      .order("created_at", { ascending: false });
+    if (!error && data && data.length) setLoans(data as LoanRow[]);
+  }, []);
+
+  // Resolve current trader (if signed in) and load their real loans.
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      const { data: userRes } = await supabase.auth.getUser();
+      const userId = userRes.user?.id;
+      if (!userId) return;
+      const { data: trader } = await supabase
+        .from("traders")
+        .select("id")
+        .eq("user_id", userId)
+        .maybeSingle();
+      if (cancelled || !trader?.id) return;
+      setTraderId(trader.id);
+      await loadLoans(trader.id);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [loadLoans]);
+
+  // Realtime: subscribe to changes on this trader's loans.
+  useEffect(() => {
+    if (!traderId) return;
+    const channel = supabase
+      .channel(`loans:${traderId}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "loan_applications",
+          filter: `trader_id=eq.${traderId}`,
+        },
+        (payload) => {
+          const next = payload.new as Partial<LoanRow> | null;
+          const prev = payload.old as Partial<LoanRow> | null;
+          if (payload.eventType === "UPDATE" && next?.status && prev?.status && next.status !== prev.status) {
+            toast(`Loan ${String(next.id).slice(0, 6)}: ${statusLabel[next.status as LoanRow["status"]].text}`);
+          } else if (payload.eventType === "INSERT") {
+            toast("New application received");
+          }
+          loadLoans(traderId);
+        },
+      )
+      .subscribe((status) => {
+        setLive(status === "SUBSCRIBED");
+      });
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [traderId, loadLoans]);
+
+  const activeTotal = loans
+    .filter((l) => l.status === "approved" || l.status === "under_review")
+    .reduce((sum, l) => sum + l.amount_kes, 0);
+
   return (
     <div className="min-h-screen bg-savanna">
       <SiteNav />
@@ -33,11 +115,26 @@ function TraderDashboard() {
             <h1 className="font-display text-3xl font-bold">Amina Wanjiru</h1>
             <p className="mt-1 text-sm text-muted-foreground">Market vendor · Nairobi · Member since 2025</p>
           </div>
-          <Link to="/apply"><Button variant="hero">New application <ArrowRight /></Button></Link>
+          <div className="flex items-center gap-3">
+            <span
+              className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-medium ${
+                live ? "bg-success/15 text-success" : "bg-muted text-muted-foreground"
+              }`}
+              title={live ? "Realtime connected" : "Realtime offline"}
+            >
+              <Radio className={`h-3 w-3 ${live ? "animate-pulse" : ""}`} />
+              {live ? "Live updates" : "Offline"}
+            </span>
+            <Link to="/apply">
+              <Button variant="hero">
+                New application <ArrowRight />
+              </Button>
+            </Link>
+          </div>
         </div>
 
         <div className="mt-8 grid gap-4 sm:grid-cols-3">
-          <KPI label="Active credit (KES)" value="27,500" hint="2 active loans" />
+          <KPI label="Active credit (KES)" value={activeTotal.toLocaleString()} hint={`${loans.length} application${loans.length === 1 ? "" : "s"}`} />
           <KPI label="Repayment streak" value="14 wks" hint="On time" />
           <KPI label="Credit tier (RANK)" value="Scout → Guardian" hint="Calibrating" />
         </div>
@@ -50,18 +147,18 @@ function TraderDashboard() {
                 <th className="px-4 py-3">Ref</th>
                 <th className="px-4 py-3">Amount</th>
                 <th className="px-4 py-3">Purpose</th>
-                <th className="px-4 py-3">GUARD risk</th>
+                <th className="px-4 py-3">Updated</th>
                 <th className="px-4 py-3">Status</th>
               </tr>
             </thead>
             <tbody>
               {loans.map((l) => (
-                <tr key={l.id} className="border-t border-border">
-                  <td className="px-4 py-3 font-mono text-xs">{l.id}</td>
-                  <td className="px-4 py-3">KES {l.amount.toLocaleString()}</td>
+                <tr key={l.id} className="border-t border-border transition-colors">
+                  <td className="px-4 py-3 font-mono text-xs">{String(l.id).slice(0, 8)}</td>
+                  <td className="px-4 py-3">KES {l.amount_kes.toLocaleString()}</td>
                   <td className="px-4 py-3 text-muted-foreground">{l.purpose}</td>
-                  <td className="px-4 py-3">
-                    <span className={l.risk > 3 ? "text-destructive" : "text-success"}>{l.risk.toFixed(1)}%</span>
+                  <td className="px-4 py-3 text-xs text-muted-foreground">
+                    {new Date(l.updated_at).toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" })}
                   </td>
                   <td className="px-4 py-3">
                     <span className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-medium ${statusLabel[l.status].tone}`}>
@@ -78,8 +175,8 @@ function TraderDashboard() {
         <div className="mt-8 flex items-start gap-3 rounded-xl border border-border bg-card p-4 text-sm">
           <ShieldCheck className="mt-0.5 h-5 w-5 text-primary" />
           <p className="text-muted-foreground">
-            Your data is stored in African regions. You can request export or deletion at any time —
-            every action is recorded to the TRACK audit log.
+            Status updates stream live from the officer console — every decision is recorded to the TRACK
+            audit log and your data stays in African regions.
           </p>
         </div>
       </main>
