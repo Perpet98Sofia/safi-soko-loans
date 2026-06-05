@@ -2,7 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { SiteNav, SiteFooter } from "@/components/SiteChrome";
 import { supabase } from "@/integrations/supabase/client";
-import { ShieldCheck, Radio, AlertTriangle, Lock, Users, Activity, XCircle, CheckCircle2 } from "lucide-react";
+import { ShieldCheck, Radio, AlertTriangle, Lock, Users, Activity, XCircle, CheckCircle2, Download, FileSpreadsheet, FileText } from "lucide-react";
 
 export const Route = createFileRoute("/regulator")({
   head: () => ({ meta: [{ title: "Regulator audit · FinSoko" }] }),
