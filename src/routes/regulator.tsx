@@ -32,6 +32,74 @@ const demoSubs: Subscription[] = [
 
 type Audit = { id: string; created_at: string; action: string; entity_type: string | null; bias_flagged: boolean | null };
 
+function escapeCsv(value: string) {
+  const str = String(value ?? "");
+  if (str.includes(",") || str.includes('"') || str.includes("\n")) {
+    return `"${str.replace(/"/g, '""')}"`;
+  }
+  return str;
+}
+
+function downloadCsv(filename: string, rows: string[][]) {
+  const csv = rows.map((r) => r.map(escapeCsv).join(",")).join("\n");
+  const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
+function downloadPdf(filename: string, title: string, htmlContent: string) {
+  const fullHtml = `
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>${title}</title>
+<style>
+  body { font-family: system-ui, -apple-system, sans-serif; font-size: 11px; color: #1a1a1a; margin: 24px; }
+  h1 { font-size: 16px; margin-bottom: 4px; }
+  h2 { font-size: 13px; margin-top: 20px; margin-bottom: 8px; }
+  .meta { color: #555; margin-bottom: 16px; }
+  table { width: 100%; border-collapse: collapse; margin-top: 8px; }
+  th, td { text-align: left; padding: 6px 8px; border-bottom: 1px solid #ddd; }
+  th { background: #f5f5f5; font-weight: 600; text-transform: uppercase; font-size: 10px; }
+  .badge { display: inline-block; padding: 2px 8px; border-radius: 999px; font-size: 10px; font-weight: 500; }
+  .pass { background: #d1fae5; color: #065f46; }
+  .fail { background: #fee2e2; color: #991b1b; }
+  .kpi-row { display: flex; gap: 16px; margin-bottom: 16px; }
+  .kpi { flex: 1; border: 1px solid #ddd; border-radius: 8px; padding: 12px; }
+  .kpi-label { font-size: 10px; text-transform: uppercase; color: #555; }
+  .kpi-value { font-size: 18px; font-weight: 700; margin-top: 4px; }
+</style>
+</head>
+<body>
+${htmlContent}
+</body>
+</html>`;
+  const blob = new Blob([fullHtml], { type: "text/html" });
+  const url = URL.createObjectURL(blob);
+  const printWindow = window.open(url, "_blank");
+  if (printWindow) {
+    printWindow.onload = () => {
+      printWindow.print();
+      URL.revokeObjectURL(url);
+    };
+  } else {
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = filename.replace(".pdf", ".html");
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  }
+}
+
 function RegulatorAudit() {
   const [logs, setLogs] = useState<Audit[]>([]);
   const [loading, setLoading] = useState(true);
