@@ -83,7 +83,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
         content:
           "FinSoko is a Nairobi-based fintech extending ethical, AI-powered credit to market vendors, boda boda riders, and smallholder farmers across East Africa.",
       },
-      { property: "og:title", content: "FinSoko — Fair credit for East Africa" },
+      { property: "og:title", content: "FinSoko — Fair credit for East Africa's informal traders" },
       {
         property: "og:description",
         content:
@@ -91,6 +91,12 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
+      { name: "twitter:title", content: "FinSoko — Fair credit for East Africa's informal traders" },
+      { name: "description", content: "Soko Loans is a fintech web app providing loans to informal East African traders." },
+      { property: "og:description", content: "Soko Loans is a fintech web app providing loans to informal East African traders." },
+      { name: "twitter:description", content: "Soko Loans is a fintech web app providing loans to informal East African traders." },
+      { property: "og:image", content: "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/5231dc90-2809-4a8c-8f52-1cd549287213/id-preview-d4384bf1--debdf4a5-c85d-4518-8e7d-181b409f2b9f.lovable.app-1781214293444.png" },
+      { name: "twitter:image", content: "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/5231dc90-2809-4a8c-8f52-1cd549287213/id-preview-d4384bf1--debdf4a5-c85d-4518-8e7d-181b409f2b9f.lovable.app-1781214293444.png" },
     ],
     links: [
       { rel: "preconnect", href: "https://fonts.googleapis.com" },
