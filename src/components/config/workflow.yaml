@@ -1,0 +1,16 @@
+workflow:
+  name: FinSoko_PRIDE_Loop
+  steps:
+    - agent: Scout
+      task: Collect trader data from safi-soko-loans.lovable.app webhook
+    - agent: Guardian
+      task: Apply risk rule and bias check
+    - agent: Officer
+      task: Pause for human review and final approval
+  safety_rails:
+    - name: risk_threshold
+      rule: "risk_score <= 3"
+    - name: bias_detection
+      rule: "bias_flag == false"
+    - name: data_sovereignty
+      rule: "region in ['Kenya','Uganda','Tanzania','South Africa']"
