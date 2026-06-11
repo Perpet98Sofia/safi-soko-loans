@@ -1,0 +1,9 @@
+[project]
+name = "finSoko_agents"
+version = "0.1.0"
+description = "FinSoko Agent Pride Blueprint"
+requires-python = ">=3.10"
+
+[tool.poetry.dependencies]
+python = ">=3.10"
+crewai = "*"
