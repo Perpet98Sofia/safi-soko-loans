@@ -238,6 +238,17 @@ export type Database = {
         }
         Returns: boolean
       }
+      write_audit_log: {
+        Args: {
+          _action: string
+          _bias_category?: string
+          _bias_flagged?: boolean
+          _entity_id?: string
+          _entity_type: string
+          _payload?: Json
+        }
+        Returns: string
+      }
     }
     Enums: {
       app_language: "en" | "sw"
